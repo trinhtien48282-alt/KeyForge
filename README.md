@@ -1,4 +1,4 @@
-\# KeyForge 🔐
+# KeyForge 🔐
 
 
 
@@ -6,39 +6,30 @@ An offline password generator and encrypted password manager built with Python a
 
 
 
-\## Planned Features
+## Planned Features
+
+
+- Secure password generation
+- Configurable password length and character sets
+- Password entropy analysis
+- Encrypted local credential vault
+- Windows desktop interface
+- Offline-first operation
 
 
 
-\- Secure password generation
-
-\- Configurable password length and character sets
-
-\- Password entropy analysis
-
-\- Encrypted local credential vault
-
-\- Windows desktop interface
-
-\- Offline-first operation
+## Technology Stack
 
 
 
-\## Technology Stack
+- Python
+- PySide6
+- pytest
+- Git
 
 
 
-\- Python
-
-\- PySide6
-
-\- pytest
-
-\- Git
-
-
-
-\## Project Status
+## Project Status
 
 
 
@@ -46,7 +37,7 @@ An offline password generator and encrypted password manager built with Python a
 
 
 
-\## Security Notice
+## Security Notice
 
 
 
@@ -54,7 +45,7 @@ KeyForge is an experimental personal project. Do not store real credentials in i
 
 
 
-\## License
+## License
 
 
 
