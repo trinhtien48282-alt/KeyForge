@@ -4,7 +4,20 @@ import sys
 from core.generator import generate_password
 
 
+def run_gui() -> int:
+    from PySide6.QtWidgets import QApplication
+
+    from ui.main_window import MainWindow
+
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    return app.exec()
+
+
 def main() -> int:
+    if len(sys.argv) == 1:  # no flags: desktop app; any flag: terminal
+        return run_gui()
     p = argparse.ArgumentParser(description="KeyForge password generator")
     p.add_argument("-l", "--length", type=int, default=20)
     p.add_argument("--no-upper", action="store_true")
