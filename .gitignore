@@ -23,6 +23,8 @@ dist/
 .env.*
 !.env.example
 *.vault
+*.vault.
+*.tmp
 *.key
 secrets.json
 
