@@ -48,3 +48,12 @@ def test_clear_keeps_newer_clipboard(page):
     QApplication.clipboard().setText("something else")
     page.clear_clipboard()
     assert QApplication.clipboard().text() == "something else"
+
+
+def test_generate_shows_analysis(page):
+    page.generate()
+    assert "Estimated entropy" in page.analysis.text()
+    for box in page.boxes.values():
+        box.setChecked(False)
+    page.generate()
+    assert page.analysis.text() == ""

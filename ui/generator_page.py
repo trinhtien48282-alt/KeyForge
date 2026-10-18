@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.analyzer import analyze
 from core.generator import MAX_LENGTH, MIN_LENGTH, generate_password
 
 CLEAR_AFTER_MS = 30_000
@@ -49,6 +50,9 @@ class GeneratorPage(QWidget):
             lambda on: self.output.setEchoMode(QLineEdit.Normal if on else QLineEdit.Password)
         )
 
+        self.analysis = QLabel()
+        self.analysis.setWordWrap(True)
+
         self.error = QLabel()
         self.error.setWordWrap(True)
         self.error.setStyleSheet("color: #c0392b;")
@@ -72,6 +76,7 @@ class GeneratorPage(QWidget):
             layout.addWidget(box)
         layout.addWidget(self.output)
         layout.addWidget(self.show_box)
+        layout.addWidget(self.analysis)
         layout.addWidget(self.error)
         layout.addLayout(buttons)
 
@@ -88,10 +93,18 @@ class GeneratorPage(QWidget):
             )
         except ValueError as e:
             self.output.clear()
+            self.analysis.clear()
             self.error.setText(str(e))
             return
         self.error.clear()
         self.output.setText(pw)
+        a = analyze(pw, generated=True)
+        lines = [
+            f"Length {a.length}. Character types: {', '.join(a.classes)}.",
+            f"Estimated entropy: {a.entropy_bits:.0f} bits, assuming random generation. An estimate, not a guarantee.",
+            *(f"Warning: {w}" for w in a.warnings),
+        ]
+        self.analysis.setText("\n".join(lines))
 
     def copy(self):
         pw = self.output.text()
