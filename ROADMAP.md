@@ -4,7 +4,7 @@ Project goal:
 
 Build an offline password generator and password manager using Python and PySide6 for Windows.
 
-PHASE 1: FOUNDATION
+PHASE 1: FOUNDATION (COMPLETED)
 
 \- Create the Git repository
 
