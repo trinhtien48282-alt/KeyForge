@@ -17,6 +17,7 @@ from storage.vault_store import (
     load_vault,
     save_vault,
     validate_entries,
+    peek_params
 )
 
 FAST = KdfParams(time_cost=2, memory_kib=19_456, parallelism=1)
@@ -182,6 +183,17 @@ def test_garbage_files(tmp_path, raw):
     with pytest.raises(VaultFormatError):
         load_vault(path, PW)
 
+def test_peek_params_and_garbage(tmp_path):
+    assert peek_params(make(tmp_path)) == FAST
+    bad = tmp_path / "b.vault"
+    bad.write_bytes(b"garbage")
+    with pytest.raises(VaultFormatError):
+        peek_params(bad)
+
+def test_create_and_save_return_written_bytes(tmp_path):
+    path = tmp_path / "r.vault"
+    assert create_vault(path, PW, [], kdf_params=FAST) == path.read_bytes()
+    assert save_vault(path, PW, [entry()], kdf_params=FAST) == path.read_bytes()
 
 def test_oversized_file(tmp_path):
     path = tmp_path / "big.vault"

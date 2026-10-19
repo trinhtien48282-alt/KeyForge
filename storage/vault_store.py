@@ -251,22 +251,29 @@ def _build(entries, password: str, params: KdfParams) -> bytes:
     validate_entries(entries)
     return _encode(_serialize(entries), password, params)
 
+def peek_params(path) -> KdfParams:
+    """KDF parameters recorded in the file header. Structure checked, nothing decrypted."""
+    return _parse(_read(Path(path)))[0]
 
-def create_vault(path, password: str, entries=(), *, kdf_params: KdfParams = DEFAULT_PARAMS) -> None:
-    """Write a new vault. Refuses if the path exists."""
+def create_vault(path, password: str, entries=(), *, kdf_params: KdfParams = DEFAULT_PARAMS) -> bytes:
+    """Write a new vault and return the bytes written. Refuses if the path exists."""
     path = Path(path)
     if path.exists():
         raise FileExistsError(f"{path} already exists")
-    _atomic_write(path, _build(entries, password, kdf_params))
+    data = _build(entries, password, kdf_params)
+    _atomic_write(path, data)
+    return data
 
 
-def save_vault(path, password: str, entries, *, kdf_params: KdfParams = DEFAULT_PARAMS) -> None:
-    """Replace an existing vault. Refuses to replace anything that is not a supported
-    vault. Does not check that `password` opens the current file: callers must pass
-    entries obtained from load_vault."""
+def save_vault(path, password: str, entries, *, kdf_params: KdfParams = DEFAULT_PARAMS) -> bytes:
+    """Replace an existing vault and return the bytes written. Refuses to replace anything
+    that is not a supported vault. Does not check that `password` opens the current file:
+    callers must pass entries obtained from load_vault."""
     path = Path(path)
     _parse(_read(path))
-    _atomic_write(path, _build(entries, password, kdf_params))
+    data = _build(entries, password, kdf_params)
+    _atomic_write(path, data)
+    return data
 
 
 def load_vault(path, password: str) -> list:

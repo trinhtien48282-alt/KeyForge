@@ -1,5 +1,8 @@
 import pickle
+import hashlib
+import json
 from unittest import mock
+from storage import vault_session
 
 import pytest
 
@@ -101,6 +104,31 @@ def test_unlock_missing_corrupt_and_unsupported_files(tmp_path):
         t.unlock(PW)
     assert t.state is SessionState.LOCKED
 
+def test_save_keeps_the_files_kdf_params(tmp_path):
+    path = tmp_path / "p.vault"
+    strong = KdfParams(time_cost=3, memory_kib=20_000, parallelism=1)
+    with VaultSession(path, kdf_params=strong) as s:
+        s.create(PW)
+    s = VaultSession(path, kdf_params=FAST)  # session default differs from the file
+    s.unlock(PW)
+    s.add_entry(fields())
+    kdf = json.loads(path.read_bytes())["kdf"]
+    assert (kdf["time_cost"], kdf["memory_kib"], kdf["parallelism"]) == (3, 20_000, 1)
+
+
+def test_seen_hash_is_of_written_bytes_not_a_disk_reread(tmp_path):
+    s, path = new(tmp_path)
+    real = vault_session._hash_file
+    calls = []
+
+    def spy(p):
+        calls.append(p)
+        return real(p)
+
+    with mock.patch("storage.vault_session._hash_file", spy):
+        s.add_entry(fields())
+    assert len(calls) == 1  # the pre-write check only
+    assert s._seen == hashlib.sha256(path.read_bytes()).digest()
 
 def test_unlock_or_create_while_unlocked_rejected(tmp_path):
     s, path = new(tmp_path)

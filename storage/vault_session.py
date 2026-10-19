@@ -27,6 +27,7 @@ from storage.vault_store import (
     load_vault,
     save_vault,
     validate_entries,
+    peek_params
 )
 
 
@@ -84,7 +85,7 @@ def _hash_file(path: Path) -> bytes:
 class VaultSession:
     def __init__(self, path, *, kdf_params: KdfParams = DEFAULT_PARAMS) -> None:
         self._path = Path(path)
-        self._kdf_params = kdf_params
+        self._kdf_params = kdf_params  # new vaults only: unlock replaces it with the file's own
         self._state = SessionState.LOCKED
         self._password: str | None = None
         self._entries: list[dict[str, str]] | None = None
@@ -104,14 +105,14 @@ class VaultSession:
         """Create a new empty vault at the path and leave the session unlocked.
         Refuses to touch an existing file."""
         self._require_locked()
-        create_vault(self._path, password, [], kdf_params=self._kdf_params)
-        self._enter(password, [], _hash_file(self._path))
+        data = create_vault(self._path, password, [], kdf_params=self._kdf_params)
+        self._enter(password, [], hashlib.sha256(data).digest(), self._kdf_params)
 
     def unlock(self, password: str) -> None:
         """Decrypt the vault. On any failure the session stays locked and keeps nothing."""
-        self._require_locked()
         seen = _hash_file(self._path)  # before loading: a racing change then shows as a conflict
-        self._enter(password, load_vault(self._path, password), seen)
+        params = peek_params(self._path)
+        self._enter(password, load_vault(self._path, password), seen, params)
 
     def lock(self) -> None:
         """Drop the password and decrypted entries. No-op unless unlocked."""
@@ -194,8 +195,9 @@ class VaultSession:
                 return i
         raise EntryNotFoundError("no such entry")
 
-    def _enter(self, password: str, entries: list, seen: bytes) -> None:
+    def _enter(self, password: str, entries: list, seen: bytes, params: KdfParams) -> None:
         self._password, self._entries, self._seen = password, entries, seen
+        self._kdf_params = params
         self._state = SessionState.UNLOCKED
 
     def _scrub(self) -> None:
@@ -213,6 +215,6 @@ class VaultSession:
             raise VaultConflictError("vault file is missing") from None
         if current != self._seen:
             raise VaultConflictError("vault file changed since it was unlocked; lock and unlock to reload")
-        save_vault(self._path, self._password, candidate, kdf_params=self._kdf_params)
+        data = save_vault(self._path, self._password, candidate, kdf_params=self._kdf_params)
         self._entries = candidate  # only after the write succeeded
-        self._seen = _hash_file(self._path)
+        self._seen = hashlib.sha256(data).digest()  # the bytes we wrote, not whatever is on disk now
