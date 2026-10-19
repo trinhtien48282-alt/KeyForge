@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import os
+import tempfile
 from collections.abc import Mapping
 from enum import Enum
 from pathlib import Path
@@ -29,6 +31,11 @@ from storage.vault_store import (
     validate_entries,
     peek_params
 )
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 
 class Entry(TypedDict):
@@ -72,6 +79,8 @@ class EntryNotFoundError(VaultError):
 class VaultConflictError(VaultError):
     """The vault file changed or disappeared since this session read it."""
 
+class VaultInUseError(VaultError):
+    """Another session or window already has this vault open."""
 
 _SUMMARY_FIELDS = ("id", "name", "username", "url")
 _OPTIONAL_FIELDS = ("username", "password", "url", "notes")
@@ -80,6 +89,27 @@ _OPTIONAL_FIELDS = ("username", "password", "url", "notes")
 def _hash_file(path: Path) -> bytes:
     with open(path, "rb") as f:
         return hashlib.sha256(f.read(MAX_FILE_BYTES + 1)).digest()
+
+def _acquire_lock(path: Path):
+    """Exclusive OS lock for the life of an unlocked session: one writer per vault.
+    Released when the process dies, so a crash leaves nothing stale. Kept in the temp
+    dir keyed by path, so no file appears beside the vault. shortcut: leaves a 0-byte
+    file in the temp dir per vault; unlinking it races other acquirers, so never clean
+    it."""
+    key = hashlib.sha256(
+        os.path.normcase(str(path.resolve())).encode("utf-8", "surrogatepass")
+    ).hexdigest()[:32]
+    f = open(os.path.join(tempfile.gettempdir(), f"keyforge-{key}.lock"), "a+b")
+    try:
+        if os.name == "nt":
+            f.seek(0)
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        raise VaultInUseError("vault is already open in another session") from None
+    return f
 
 
 class VaultSession:
@@ -90,6 +120,7 @@ class VaultSession:
         self._password: str | None = None
         self._entries: list[dict[str, str]] | None = None
         self._seen: bytes | None = None  # hash of the file as this session last saw it
+        self._lock = None  # OS lock, held only while unlocked
 
     # ---- lifecycle -------------------------------------------------------
 
@@ -105,14 +136,28 @@ class VaultSession:
         """Create a new empty vault at the path and leave the session unlocked.
         Refuses to touch an existing file."""
         self._require_locked()
-        data = create_vault(self._path, password, [], kdf_params=self._kdf_params)
+        lock = _acquire_lock(self._path)
+        try:
+            data = create_vault(self._path, password, [], kdf_params=self._kdf_params)
+        except BaseException:
+            lock.close()
+            raise
+        self._lock = lock
         self._enter(password, [], hashlib.sha256(data).digest(), self._kdf_params)
 
     def unlock(self, password: str) -> None:
         """Decrypt the vault. On any failure the session stays locked and keeps nothing."""
-        seen = _hash_file(self._path)  # before loading: a racing change then shows as a conflict
-        params = peek_params(self._path)
-        self._enter(password, load_vault(self._path, password), seen, params)
+        self._require_locked()
+        lock = _acquire_lock(self._path)
+        try:
+            seen = _hash_file(self._path)  # before loading: a racing change then shows as a conflict
+            params = peek_params(self._path)
+            entries = load_vault(self._path, password)
+        except BaseException:
+            lock.close()
+            raise
+        self._lock = lock
+        self._enter(password, entries, seen, params)
 
     def lock(self) -> None:
         """Drop the password and decrypted entries. No-op unless unlocked."""
@@ -206,6 +251,9 @@ class VaultSession:
                 e.clear()
             self._entries.clear()
         self._entries = self._password = self._seen = None
+        if self._lock is not None:
+            self._lock.close()
+            self._lock = None
 
     def _commit(self, candidate: list[dict[str, str]]) -> None:
         validate_entries(candidate)

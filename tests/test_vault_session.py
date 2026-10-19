@@ -15,8 +15,9 @@ from storage.vault_session import (
     SessionStateError,
     VaultConflictError,
     VaultSession,
+    VaultInUseError
 )
-from storage.vault_store import VaultAuthError, VaultFormatError, VaultVersionError, load_vault
+from storage.vault_store import VaultAuthError, VaultFormatError, VaultVersionError, load_vault, save_vault
 
 FAST = KdfParams(time_cost=2, memory_kib=19_456, parallelism=1)
 PW = "Sup3r-Secret-MASTER"
@@ -346,20 +347,30 @@ def test_failed_save_changes_nothing_and_session_recovers(tmp_path, op, target):
     assert [e["name"] for e in load_vault(path, PW)] == ["site1", "after"]
 
 
-def test_stale_session_cannot_overwrite_newer_file(tmp_path):
-    s1, path = new(tmp_path)
-    s2 = open_(path)
-    s1.add_entry(fields("from-s1"))
-    after_s1 = path.read_bytes()
+def test_externally_changed_file_blocks_save(tmp_path):
+    s, path = new(tmp_path)
+    s.add_entry(fields("mine"))
+    save_vault(path, PW, [], kdf_params=FAST)  # a foreign writer replaces the file
+    after = path.read_bytes()
     with pytest.raises(VaultConflictError):
-        s2.add_entry(fields("from-s2"))
-    assert path.read_bytes() == after_s1 and s2.list_entries() == []
-    s2.lock()
-    s2.unlock(PW)
-    assert [e["name"] for e in s2.list_entries()] == ["from-s1"]
-    s2.add_entry(fields("from-s2"))
-    assert [e["name"] for e in load_vault(path, PW)] == ["from-s1", "from-s2"]
+        s.add_entry(fields("late"))
+    assert path.read_bytes() == after
+    s.lock()
+    s.unlock(PW)
+    assert s.list_entries() == []
+    s.add_entry(fields("late"))
+    assert [e["name"] for e in load_vault(path, PW)] == ["late"]
 
+
+def test_second_session_rejected_until_first_locks(tmp_path):
+    s, path = new(tmp_path)
+    t = VaultSession(path, kdf_params=FAST)
+    with pytest.raises(VaultInUseError):
+        t.unlock(PW)
+    assert t.state is SessionState.LOCKED and t._password is None
+    s.lock()
+    t.unlock(PW)
+    assert t.is_unlocked
 
 def test_vault_file_removed_mid_session_is_a_conflict_not_a_recreate(tmp_path):
     s, path = new(tmp_path)
