@@ -1,4 +1,4 @@
-\# KeyForge release guide
+# KeyForge release guide
 
 
 
@@ -12,7 +12,7 @@ No artifact name or checksum is stored in this repo. The version comes from
 
 
 
-\## 1. Pre-release checks
+## 1. Pre-release checks
 
 
 
@@ -24,7 +24,7 @@ uv lock --check              # lock matches pyproject.toml
 
 uv run pytest -v             # all tests pass
 
-git ls-files | Select-String -Pattern '\\\\\\\\.(vault|key|env)(\\\\\\\\.|$)|secrets'   # must print nothing
+git ls-files | Select-String -Pattern '[.](vault|key|env)([.]|$)|secrets'  # must print nothing
 
 git tag                      # the new version must not exist yet
 
@@ -38,7 +38,7 @@ run `uv lock`, and commit both files together.
 
 
 
-\## 2. Build
+## 2. Build
 
 
 
@@ -54,7 +54,7 @@ uv run --no-sync pyinstaller --noconfirm --clean --windowed --name KeyForge main
 
 
 
-Output: `dist\\\\\\\\KeyForge\\\\\\\\KeyForge.exe` plus support files. This is a folder build
+Output: `dist/KeyForge/KeyForge.exe` plus support files. This is a folder build
 
 (`--onedir`), which starts faster and triggers fewer antivirus false positives
 
@@ -64,21 +64,21 @@ nothing in the exe. Use `uv run python main.py -l 24` for the terminal.
 
 
 
-`build/`, `dist/` and `\\\\\\\*.spec` are in `.gitignore`.
+`build/`, `dist/` and `*.spec` are in `.gitignore`.
 
 
 
-\## 3. Package
+## 3. Package
 
 
 
 ```powershell
 
-$v = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"').Matches\\\\\\\[0].Groups\\\\\\\[1].Value
+$v = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
 
-Compress-Archive -Path dist\\\\\\\\KeyForge -DestinationPath "dist\\\\\\\\KeyForge-$v-win64.zip" -Force
+Compress-Archive -Path dist/KeyForge -DestinationPath "dist/KeyForge-$v-win64.zip" -Force
 
-Get-FileHash "dist\\\\\\\\KeyForge-$v-win64.zip" -Algorithm SHA256
+Get-FileHash "dist/KeyForge-$v-win64.zip" -Algorithm SHA256
 
 ```
 
@@ -96,13 +96,13 @@ Put the hash in the GitHub release notes. To verify a download:
 
 ```powershell
 
-Get-FileHash .\\\\\\\\KeyForge-<version>-win64.zip -Algorithm SHA256
+Get-FileHash ./KeyForge-<version>-win64.zip -Algorithm SHA256
 
 ```
 
 
 
-\## 4. Test on a clean Windows machine
+## 4. Test on a clean Windows machine
 
 
 
@@ -114,39 +114,39 @@ never real credentials.
 
 
 
-1\. Copy the zip over and extract it.
+1. Copy the zip over and extract it.
 
-2\. Run `KeyForge.exe`. The window opens with no errors.
+2. Run `KeyForge.exe`. The window opens with no errors.
 
-3\. Generator tab: generate at several lengths and with each checkbox off. Turn all
+3. Generator tab: generate at several lengths and with each checkbox off. Turn all
 
 &#x20;  off: an error shows and no password.
 
-4\. Show/hide works. Analysis text appears.
+4. Show/hide works. Analysis text appears.
 
-5\. Copy, paste elsewhere. After 30 seconds the clipboard is empty.
+5. Copy, paste elsewhere. After 30 seconds the clipboard is empty.
 
-6\. Copy, then copy something else. After 30 seconds the newer text is untouched.
+6. Copy, then copy something else. After 30 seconds the newer text is untouched.
 
-7\. Vault tab: create a vault in a temp folder. Add an entry. Lock. Unlock with a
+7. Vault tab: create a vault in a temp folder. Add an entry. Lock. Unlock with a
 
 &#x20;  wrong password (error, still locked), then the right one.
 
-8\. Copy the entry password, then paste it. Open Win+V clipboard history (turn it
+8. Copy the entry password, then paste it. Open Win+V clipboard history (turn it
 
 &#x20;  on first if needed). The password must not appear there.
 
-9\. Set auto-lock to 1 minute, leave KeyForge untouched. It locks.
+9. Set auto-lock to 1 minute, leave KeyForge untouched. It locks.
 
-10\. Start a second KeyForge on the same vault file: it reports the vault is open.
+10. Start a second KeyForge on the same vault file: it reports the vault is open.
 
-11\. Close the window with a password on the clipboard. The clipboard is cleared.
+11. Close the window with a password on the clipboard. The clipboard is cleared.
 
-12\. Delete the test vault.
+12. Delete the test vault.
 
 
 
-\## 5. Verify offline
+## 5. Verify offline
 
 
 
@@ -156,7 +156,7 @@ calls.
 
 
 
-\## 6. Tag and publish
+## 6. Tag and publish
 
 
 
@@ -182,13 +182,13 @@ release notes.
 
 
 
-\## Not done
+## Not done
 
 
 
-\- Code signing. Windows SmartScreen or antivirus may warn.
+- Code signing. Windows SmartScreen or antivirus may warn.
 
-\- Third-party security audit.
+- Third-party security audit.
 
-\- Test on a second Windows version.
+- Test on a second Windows version.
 
