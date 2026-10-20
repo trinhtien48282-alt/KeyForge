@@ -13,12 +13,8 @@ dependencies = [
     "pyside6>=6.12.0",
 ]
 
-[project.scripts]
-project-keyforge = "project_keyforge:main"
-
-[build-system]
-requires = ["uv_build>=0.12.23,<0.13.0"]
-build-backend = "uv_build"
+[tool.uv]
+package = false
 
 [dependency-groups]
 dev = [
