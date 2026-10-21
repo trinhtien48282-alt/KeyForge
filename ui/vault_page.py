@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.analyzer import analyze
 from security.key_derivation import DEFAULT_PARAMS
 from storage.vault_session import (
     EntryNotFoundError,
@@ -114,6 +115,10 @@ class VaultPage(QWidget):
         self.master.returnPressed.connect(self.unlock)
         self.confirm = QLineEdit()
         self.confirm.setEchoMode(QLineEdit.EchoMode.Password)
+        self.master_hint = QLabel()
+        self.master_hint.setWordWrap(True)
+        self.master.textChanged.connect(self._update_master_hint)
+        self.confirm.textChanged.connect(self._update_master_hint)
         self.unlock_btn = QPushButton("Unlock")
         self.unlock_btn.clicked.connect(self.unlock)
         self.create_btn = QPushButton("Create new vault")
@@ -140,6 +145,7 @@ class VaultPage(QWidget):
         layout = QVBoxLayout(w)
         layout.addWidget(QLabel("Vault locked"))
         layout.addLayout(form)
+        layout.addWidget(self.master_hint)
         layout.addLayout(buttons)
         layout.addWidget(self.lock_error)
         layout.addWidget(note)
@@ -274,6 +280,22 @@ class VaultPage(QWidget):
         self._refresh()
         self.stack.setCurrentIndex(1)
         self._restart_idle()
+
+    def _update_master_hint(self, *_):
+        """Advice while choosing a master password. Shown only once the confirm box
+        has text (unlocking never uses it) and it never blocks creating the vault.
+        analyze() warnings never contain the password."""
+        pw = self.master.text()
+        if not pw or not self.confirm.text():
+            self.master_hint.clear()
+            return
+        a = analyze(pw)
+        lines = [
+            f"Length {a.length}. Rough estimate: up to {a.entropy_bits:.0f} bits. "
+            "A rough check, not a guarantee.",
+            *(f"Warning: {w}" for w in a.warnings),
+        ]
+        self.master_hint.setText("\n".join(lines))
 
     def _set_busy(self, on: bool):
         # shortcut: Argon2 runs on the GUI thread (VaultSession is not thread-safe); a hostile

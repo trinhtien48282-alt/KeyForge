@@ -39,6 +39,7 @@ The Vault tab stores credentials in an Argon2id + AES-256-GCM encrypted file.
 - One KeyForge window can have a given vault open at a time. If the file changes on disk while unlocked, saving is refused until you lock and unlock.
 
 - KeyForge remembers the last vault path (not a secret) in the Windows registry.
+- When you type a master password for a new vault, KeyForge shows a rough check (entropy estimate and warnings). It is not a guarantee, and it never stops you.
 
 
 
