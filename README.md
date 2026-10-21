@@ -117,5 +117,5 @@ Status: git tags exist for earlier versions, but no GitHub release has been publ
 
 
 
-To be determined.
+MIT. See [LICENSE](LICENSE).
 
