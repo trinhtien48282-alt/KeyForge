@@ -246,7 +246,7 @@ wheels = [
 
 [[package]]
 name = "project-keyforge"
-version = "0.2.0.dev0"
+version = "0.3.0"
 source = { virtual = "." }
 dependencies = [
     { name = "argon2-cffi" },

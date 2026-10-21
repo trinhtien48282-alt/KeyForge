@@ -79,7 +79,7 @@ See [docs/RELEASE.md](docs/RELEASE.md).
 
 
 
-Status: git tags exist for earlier versions, but no GitHub release has been published and no checksum is published. Builds have not been tested on a clean machine or offline.
+Status: v0.3.0 is a pre-release. It has not been tested on a clean Windows machine or offline. The SHA-256 of the zip is in the GitHub release notes.
 
 
 
