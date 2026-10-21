@@ -1,3 +1,5 @@
+import re
+
 from PySide6.QtCore import QEvent, QSettings, Qt, QTimer
 from PySide6.QtWidgets import (
     QApplication,
@@ -33,6 +35,22 @@ DEFAULT_IDLE_MIN = 5
 IDLE_EVENTS = (QEvent.Type.MouseButtonPress, QEvent.Type.KeyPress, QEvent.Type.Wheel)
 
 
+# Allowlist of ValueError messages that are safe to show (full match). They name
+# fields and indexes, never values. Any other ValueError may quote a value (a
+# UnicodeError quotes characters), so it gets generic text instead.
+_SAFE_VALUE_ERROR = re.compile(
+    r"entries must be a list"
+    r"|too many entries \(max \d+\)"
+    r"|vault too large"
+    r"|master password must be a non-empty string"
+    r"|master password is not valid Unicode"
+    r"|changes may only set: \[[a-z_', ]*\]"
+    r"|entry \d+: (?:must be a dict with exactly the fields \[[a-z_', ]*\]"
+    r"|field '[a-z]+' (?:must be a string|length must be \d+ to \d+)"
+    r"|duplicate id)"
+)
+
+
 def error_text(e: Exception) -> str:
     """Fixed, user-safe text. Vault and crypto errors never carry secrets; ValueError
     messages from validation name fields and indexes, never values."""
@@ -56,8 +74,9 @@ def error_text(e: Exception) -> str:
         return "Permission denied."
     if isinstance(e, OSError):
         return "Could not read or write the file."
-    if isinstance(e, ValueError):
-        return str(e)
+    if isinstance(e, ValueError) and not isinstance(e, UnicodeError):
+        msg = str(e)
+        return msg if _SAFE_VALUE_ERROR.fullmatch(msg) else "Invalid input."
     return "Something went wrong."
 
 
